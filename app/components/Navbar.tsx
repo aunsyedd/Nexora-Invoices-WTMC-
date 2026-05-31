@@ -72,7 +72,7 @@ export default function Navbar() {
             <div className={navGroupClass(isCustomerRoute)}>
               <div className="flex items-center gap-2">
                 <Users size={18} />
-                <span className="text-sm font-medium">Customers</span>
+                <span className="text-sm font-medium">Third Party</span>
               </div>
               <ChevronDown size={14} />
             </div>
