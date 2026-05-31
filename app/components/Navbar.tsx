@@ -2,12 +2,17 @@
 
 import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
+import { supabase } from "@/lib/supabaseClient";
 import { Home, Users, FileText, ChevronDown } from "lucide-react";
 import Footer from "./Footer";
 
 export default function Navbar() {
   const router = useRouter();
   const pathname = usePathname();
+  const handleLogout = async () => {
+  await supabase.auth.signOut();
+  router.push("/login");
+};
 
   const isCustomerRoute = pathname?.startsWith("/customer");
   const isBillingRoute = pathname?.startsWith("/billing");
@@ -156,13 +161,23 @@ export default function Navbar() {
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
-            <span className="text-sm text-gray-600 hidden sm:inline">Admin</span>
-            <div className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium">
-              Syed
-              <ChevronDown size={14} />
-            </div>
-          </div>
+<div className="flex items-center gap-3">
+  <span className="text-sm text-gray-600 hidden sm:inline">Admin</span>
+
+  <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1 bg-blue-600 text-white px-3 py-1.5 rounded text-sm font-medium">
+      Syed
+      <ChevronDown size={14} />
+    </div>
+
+    <button
+      onClick={handleLogout}
+      className="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded text-sm font-medium transition"
+    >
+      Logout
+    </button>
+  </div>
+</div>
         </header>
       </div>
     </>

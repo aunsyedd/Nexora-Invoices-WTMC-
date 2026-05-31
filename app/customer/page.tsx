@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "../hooks/useAuth";
 import Navbar from "../components/Navbar";
 import { Plus, Search, Pencil, Trash2 } from "lucide-react";
 import Link from "next/link";
@@ -15,6 +16,8 @@ interface Customer {
 }
 
 export default function CustomerPage() {
+  const { user, loading: authLoading } = useAuth();
+
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [search, setSearch] = useState("");
   const [togglingId, setTogglingId] = useState<number | null>(null);
@@ -23,8 +26,9 @@ export default function CustomerPage() {
   const [statusType, setStatusType] = useState<"error" | "success">("error");
 
   useEffect(() => {
+    if (!user) return;
     fetchCustomers();
-  }, []);
+  }, [user]);
 
   const fetchCustomers = async () => {
     const { data, error } = await supabase
@@ -53,9 +57,7 @@ export default function CustomerPage() {
     }
 
     setCustomers((prev) =>
-      prev.map((c) =>
-        c.id === customer.id ? { ...c, active: newActive } : c
-      )
+      prev.map((c) => (c.id === customer.id ? { ...c, active: newActive } : c))
     );
     setTogglingId(null);
   };
@@ -119,6 +121,20 @@ export default function CustomerPage() {
         c.email?.toLowerCase().includes(q)
     );
   }, [customers, search]);
+
+  // Auth guard
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-500 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   return (
     <div className="flex min-h-screen bg-gray-100">
@@ -195,7 +211,9 @@ export default function CustomerPage() {
                     {filtered.length === 0 ? (
                       <tr>
                         <td colSpan={6} className="p-6 text-center text-gray-500">
-                          {search ? "No customers match your search." : "No customers yet. Add your first customer."}
+                          {search
+                            ? "No customers match your search."
+                            : "No customers yet. Add your first customer."}
                         </td>
                       </tr>
                     ) : (
@@ -224,11 +242,7 @@ export default function CustomerPage() {
                                   : "bg-gray-400 text-white hover:bg-gray-500"
                               }`}
                             >
-                              {togglingId === c.id
-                                ? "..."
-                                : c.active
-                                  ? "Active"
-                                  : "Inactive"}
+                              {togglingId === c.id ? "..." : c.active ? "Active" : "Inactive"}
                             </button>
                           </td>
                           <td className="p-3">
@@ -260,9 +274,7 @@ export default function CustomerPage() {
               </div>
 
               <div className="flex justify-between items-center mt-4 text-sm text-gray-500">
-                <span>
-                  Showing {filtered.length} of {customers.length} entries
-                </span>
+                <span>Showing {filtered.length} of {customers.length} entries</span>
                 <span>
                   {customers.filter((c) => c.active).length} active ·{" "}
                   {customers.filter((c) => !c.active).length} inactive

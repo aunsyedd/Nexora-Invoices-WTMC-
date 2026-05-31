@@ -1,8 +1,10 @@
 "use client";
 
+
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import { useAuth } from "@/app/hooks/useAuth";
 import Navbar from "../../components/Navbar";
 import { Upload, Trash2, Minus, Users, List } from "lucide-react";
 import Link from "next/link";
@@ -12,7 +14,6 @@ interface CustomerFormProps {
   customerId?: string;
   initialCustomer?: Record<string, unknown> | null;
 }
-
 const initialState = {
   name: "",
   alias_name: "",
@@ -38,6 +39,8 @@ export default function CustomerForm({
   customerId = "",
   initialCustomer = null,
 }: CustomerFormProps) {
+  const { user, loading: authLoading } = useAuth();
+
   const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
@@ -48,6 +51,8 @@ export default function CustomerForm({
   const [formData, setFormData] = useState(initialState);
 
   useEffect(() => {
+    if (!user) return;
+
     if (mode === "edit" && initialCustomer) {
       setFormData({
         name: String(initialCustomer.name ?? ""),
@@ -68,13 +73,16 @@ export default function CustomerForm({
         image_url: String(initialCustomer.image_url ?? ""),
         active: Boolean(initialCustomer.active ?? true),
       });
+
       if (initialCustomer.image_url) {
         setPreviewUrl(String(initialCustomer.image_url));
       }
     }
-  }, [mode, initialCustomer]);
+  }, [mode, initialCustomer, user]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
@@ -85,9 +93,7 @@ export default function CustomerForm({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setPreviewUrl(URL.createObjectURL(file));
-    }
+    if (file) setPreviewUrl(URL.createObjectURL(file));
   };
 
   const uploadImage = async (file: File) => {
@@ -95,16 +101,18 @@ export default function CustomerForm({
     const fileName = `${Math.random()}.${fileExt}`;
     const filePath = `customer_avatars/${fileName}`;
 
-    const { error: uploadError } = await supabase.storage
+    const { error } = await supabase.storage
       .from("customer-pics")
       .upload(filePath, file);
 
-    if (uploadError) throw uploadError;
+    if (error) throw error;
 
-    const { data } = supabase.storage.from("customer-pics").getPublicUrl(filePath);
+    const { data } = supabase.storage
+      .from("customer-pics")
+      .getPublicUrl(filePath);
+
     return data.publicUrl;
   };
-
   const handleSave = async () => {
     if (!formData.name.trim()) {
       setStatusType("error");
@@ -112,9 +120,11 @@ export default function CustomerForm({
       return;
     }
 
+
     setIsSaving(true);
     setStatusMsg("");
     setStatusType("");
+
 
     try {
       let finalImageUrl = formData.image_url;
@@ -124,6 +134,7 @@ export default function CustomerForm({
         finalImageUrl = await uploadImage(file);
       }
 
+
       const payload = { ...formData, image_url: finalImageUrl };
 
       if (mode === "edit" && customerId) {
@@ -132,32 +143,45 @@ export default function CustomerForm({
           .update(payload)
           .eq("id", customerId);
 
+
         if (error) throw error;
 
-        setStatusType("success");
+          setStatusType("success");
         setStatusMsg("Customer updated successfully.");
         setTimeout(() => router.push("/customer"), 1200);
         return;
       }
+      const { error } = await supabase
+        .from("customers")
+        .insert([payload]);
 
-      const { error } = await supabase.from("customers").insert([payload]);
+   if (error) throw error;
 
-      if (error) throw error;
 
       setStatusType("success");
       setStatusMsg("Customer saved successfully.");
       setFormData(initialState);
       setPreviewUrl(null);
       setTimeout(() => router.push("/customer"), 1200);
-    } catch (error: unknown) {
-      const message = error instanceof Error ? error.message : "Unknown error";
+    } catch (error: any) {
       setStatusType("error");
-      setStatusMsg("Error saving customer: " + message);
+      setStatusMsg("Error saving customer: " + error.message);
     } finally {
       setIsSaving(false);
     }
   };
-
+  
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-500 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+  if (!user) return null;
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans text-gray-700">
       <Navbar   />

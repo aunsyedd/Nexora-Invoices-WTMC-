@@ -4,24 +4,39 @@ import React, { useEffect, useState } from "react";
 import Navbar from "../components/Navbar";
 import { FileText } from "lucide-react";
 import Link from "next/link";
+import { useAuth } from "../hooks/useAuth";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function BillingPage() {
+  const { user, loading: authLoading } = useAuth();
   const [invoiceCount, setInvoiceCount] = useState(0);
 
   useEffect(() => {
+    if (!user) return;
+
     const fetchCount = async () => {
       const { count, error } = await supabase
         .from("invoices")
         .select("*", { count: "exact", head: true });
 
-      if (!error) {
-        setInvoiceCount(count || 0);
-      }
+      if (!error) setInvoiceCount(count || 0);
     };
 
     fetchCount();
-  }, []);
+  }, [user]);
+
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-500 font-medium">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) return null;
 
   const stats = [
     {
