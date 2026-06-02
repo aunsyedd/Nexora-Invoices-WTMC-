@@ -45,6 +45,7 @@ export default function CustomerForm({
   const [isSaving, setIsSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [statusType, setStatusType] = useState<"success" | "error" | "">("");
+  const [vatError, setVatError] = useState("");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -85,6 +86,20 @@ export default function CustomerForm({
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+
+    // Live VAT validation feedback
+    if (name === "vat_no") {
+      const digits = value.replace(/\D/g, "");
+      if (value && !/^\d+$/.test(value)) {
+        setVatError("VAT Number must contain digits only.");
+      } else if (digits.length > 0 && digits.length !== 15) {
+        setVatError(`${digits.length}/15 digits entered.`);
+      } else if (digits.length === 15) {
+        setVatError("");
+      } else {
+        setVatError("");
+      }
+    }
   };
 
   const toggleActive = () => {
@@ -113,6 +128,7 @@ export default function CustomerForm({
 
     return data.publicUrl;
   };
+
   const handleSave = async () => {
     if (!formData.name.trim()) {
       setStatusType("error");
@@ -120,11 +136,28 @@ export default function CustomerForm({
       return;
     }
 
+    if (!formData.vat_no.trim()) {
+      setStatusType("error");
+      setStatusMsg("VAT Number is required.");
+      setVatError("VAT Number is required.");
+      return;
+    }
+
+    if (!/^\d{15}$/.test(formData.vat_no.trim())) {
+      setStatusType("error");
+      setStatusMsg(
+        `VAT Number must be exactly 15 digits. Currently ${formData.vat_no.trim().length} digit(s) entered.`
+      );
+      setVatError(
+        `Must be exactly 15 digits. (${formData.vat_no.trim().length} entered)`
+      );
+      return;
+    }
 
     setIsSaving(true);
     setStatusMsg("");
     setStatusType("");
-
+    setVatError("");
 
     try {
       let finalImageUrl = formData.image_url;
@@ -134,7 +167,6 @@ export default function CustomerForm({
         finalImageUrl = await uploadImage(file);
       }
 
-
       const payload = { ...formData, image_url: finalImageUrl };
 
       if (mode === "edit" && customerId) {
@@ -143,10 +175,9 @@ export default function CustomerForm({
           .update(payload)
           .eq("id", customerId);
 
-
         if (error) throw error;
 
-          setStatusType("success");
+        setStatusType("success");
         setStatusMsg("Customer updated successfully.");
         setTimeout(() => router.push("/customer"), 1200);
         return;
@@ -155,8 +186,7 @@ export default function CustomerForm({
         .from("customers")
         .insert([payload]);
 
-   if (error) throw error;
-
+      if (error) throw error;
 
       setStatusType("success");
       setStatusMsg("Customer saved successfully.");
@@ -337,7 +367,45 @@ export default function CustomerForm({
                 <Minus size={14}/>
               </div>
               <div className="p-4 grid grid-cols-2 gap-4">
-                <div><label className="text-xs font-bold block mb-1 uppercase text-gray-500">VAT Number</label><input name="vat_no" value={formData.vat_no} onChange={handleInputChange} placeholder="VAT Number Enter" className="w-full border p-2 text-sm rounded outline-none" /></div>
+                <div>
+                  <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+                    VAT Number <span className="text-red-500">*</span>
+                    <span className="ml-2 normal-case font-normal text-gray-400">(exactly 15 digits)</span>
+                  </label>
+                  <input
+                    name="vat_no"
+                    value={formData.vat_no}
+                    onChange={handleInputChange}
+                    placeholder="Enter 15-digit VAT Number"
+                    maxLength={15}
+                    inputMode="numeric"
+                    className={`w-full border p-2 text-sm rounded outline-none transition-colors ${
+                      vatError
+                        ? "border-red-400 bg-red-50 focus:border-red-500"
+                        : formData.vat_no.length === 15
+                        ? "border-green-400 bg-green-50 focus:border-green-500"
+                        : "focus:border-blue-500"
+                    }`}
+                  />
+                  <div className="flex justify-between items-center mt-1">
+                    {vatError ? (
+                      <p className="text-xs text-red-500">{vatError}</p>
+                    ) : (
+                      <p className="text-xs text-gray-400">Numbers only</p>
+                    )}
+                    <span
+                      className={`text-xs font-medium ${
+                        formData.vat_no.length === 15
+                          ? "text-green-600"
+                          : formData.vat_no.length > 0
+                          ? "text-orange-500"
+                          : "text-gray-400"
+                      }`}
+                    >
+                      {formData.vat_no.length}/15
+                    </span>
+                  </div>
+                </div>
                 <div><label className="text-xs font-bold block mb-1 uppercase text-gray-500">Other ID</label><input name="other_id" value={formData.other_id} onChange={handleInputChange} placeholder="Other ID Enter" className="w-full border p-2 text-sm rounded outline-none" /></div>
               </div>
             </div>
