@@ -1,6 +1,5 @@
 "use client";
 
-
 import { useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
@@ -14,6 +13,7 @@ interface CustomerFormProps {
   customerId?: string;
   initialCustomer?: Record<string, unknown> | null;
 }
+
 const initialState = {
   name: "",
   alias_name: "",
@@ -40,8 +40,8 @@ export default function CustomerForm({
   initialCustomer = null,
 }: CustomerFormProps) {
   const { user, loading: authLoading } = useAuth();
-
   const router = useRouter();
+
   const [isSaving, setIsSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [statusType, setStatusType] = useState<"success" | "error" | "">("");
@@ -53,7 +53,6 @@ export default function CustomerForm({
 
   useEffect(() => {
     if (!user) return;
-
     if (mode === "edit" && initialCustomer) {
       setFormData({
         name: String(initialCustomer.name ?? ""),
@@ -74,7 +73,6 @@ export default function CustomerForm({
         image_url: String(initialCustomer.image_url ?? ""),
         active: Boolean(initialCustomer.active ?? true),
       });
-
       if (initialCustomer.image_url) {
         setPreviewUrl(String(initialCustomer.image_url));
       }
@@ -87,7 +85,6 @@ export default function CustomerForm({
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
-    // Live VAT validation feedback
     if (name === "vat_no") {
       const digits = value.replace(/\D/g, "");
       if (value && !/^\d+$/.test(value)) {
@@ -182,10 +179,8 @@ export default function CustomerForm({
         setTimeout(() => router.push("/customer"), 1200);
         return;
       }
-      const { error } = await supabase
-        .from("customers")
-        .insert([payload]);
 
+      const { error } = await supabase.from("customers").insert([payload]);
       if (error) throw error;
 
       setStatusType("success");
@@ -200,7 +195,8 @@ export default function CustomerForm({
       setIsSaving(false);
     }
   };
-  
+
+  // ── Auth guard ──
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -211,27 +207,61 @@ export default function CustomerForm({
       </div>
     );
   }
+
   if (!user) return null;
+
+  // ── Reusable field renderer ──
+  const Field = ({
+    label,
+    name,
+    placeholder,
+    required,
+    extra,
+  }: {
+    label: string;
+    name: string;
+    placeholder?: string;
+    required?: boolean;
+    extra?: React.ReactNode;
+  }) => (
+    <div>
+      <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      <input
+        name={name}
+        value={formData[name as keyof typeof formData] as string}
+        onChange={handleInputChange}
+        placeholder={placeholder ?? `${label} Enter`}
+        className="w-full border p-2 text-sm rounded outline-none focus:border-blue-500"
+      />
+      {extra}
+    </div>
+  );
+
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans text-gray-700">
-      <Navbar   />
+      <Navbar />
 
-      <main className="flex-1 pt-14 overflow-y-auto">
-        <div className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <div className="flex items-center gap-4">
-              <h1 className="text-2xl font-semibold text-gray-800">
+      <main className="flex-1 pt-14 overflow-y-auto min-w-0">
+        <div className="p-3 sm:p-6">
+
+          {/* ── Page Header ── */}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">
                 {mode === "edit" ? "Edit Customer" : "New Customer"}
               </h1>
               <Link
                 href="/customer"
                 className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-sm text-sm font-medium transition-colors shadow-sm"
               >
-                <List size={16} />
+                <List size={15} />
                 Customer List
               </Link>
             </div>
-            <div className="text-xs text-blue-600">
+            <div className="text-xs text-blue-600 self-start sm:self-auto">
               Home /{" "}
               <span className="text-gray-500">
                 {mode === "edit" ? "Edit Customer" : "New Customer"}
@@ -240,63 +270,120 @@ export default function CustomerForm({
           </div>
 
           <div className="space-y-4 pb-10">
+
+            {/* ── Row 1: General Info + Picture ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-              {/* General Info */}
+
+              {/* General Information */}
               <div className="lg:col-span-2 bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
                 <div className="bg-blue-600 text-white p-2 px-4 flex justify-between items-center text-sm">
                   <span className="font-medium">General Information</span>
                   <div className="flex gap-2 items-center text-[10px]">
                     {mode === "edit" && customerId && (
-                      <span className="bg-white/20 px-2 py-0.5 rounded">ID: {customerId}</span>
+                      <span className="bg-white/20 px-2 py-0.5 rounded">
+                        ID: {customerId}
+                      </span>
                     )}
                     <button
                       type="button"
                       onClick={toggleActive}
                       className={`px-2 py-0.5 rounded transition-colors ${
-                        formData.active ? "bg-green-500 hover:bg-green-600" : "bg-gray-500 hover:bg-gray-600"
+                        formData.active
+                          ? "bg-green-500 hover:bg-green-600"
+                          : "bg-gray-500 hover:bg-gray-600"
                       }`}
                       title="Click to toggle status"
                     >
                       {formData.active ? "Active" : "Inactive"}
                     </button>
-                    <Minus size={14}/>
+                    <Minus size={14} />
                   </div>
                 </div>
-                <div className="p-4 grid grid-cols-2 gap-4">
+
+                <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* ID */}
                   <div>
-                    <label className="text-xs font-bold block mb-1 uppercase text-gray-500">ID</label>
+                    <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+                      ID
+                    </label>
                     <input
                       disabled
-                      value={mode === "edit" && customerId ? customerId : ""}
+                      value={
+                        mode === "edit" && customerId ? customerId : ""
+                      }
                       placeholder="Auto-generated"
                       className="w-full border bg-gray-50 p-2 text-sm rounded cursor-not-allowed"
                     />
                   </div>
+
+                  {/* Third Party Type */}
                   <div>
-                    <label className="text-xs font-bold block mb-1 uppercase text-gray-500">Third Party Type</label>
-                    <select className="w-full border p-2 text-sm rounded outline-none"><option>Customer</option></select>
+                    <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+                      Third Party Type
+                    </label>
+                    <select className="w-full border p-2 text-sm rounded outline-none">
+                      <option>Customer</option>
+                    </select>
                   </div>
-                  <div className="col-span-2">
-                    <label className="text-xs font-bold block mb-1 uppercase text-gray-500">Name</label>
-                    <input name="name" value={formData.name} onChange={handleInputChange} placeholder="Name Enter" className="w-full border p-2 text-sm rounded outline-none focus:border-blue-500" />
+
+                  {/* Name — full width */}
+                  <div className="sm:col-span-2">
+                    <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+                      Name
+                    </label>
+                    <input
+                      name="name"
+                      value={formData.name}
+                      onChange={handleInputChange}
+                      placeholder="Name Enter"
+                      className="w-full border p-2 text-sm rounded outline-none focus:border-blue-500"
+                    />
                   </div>
                 </div>
               </div>
 
-              {/* Picture Section */}
+              {/* Picture */}
               <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
                 <div className="bg-blue-600 text-white p-2 px-4 flex justify-between items-center text-sm">
                   <span className="font-medium">Picture</span>
                   <div className="flex gap-1">
-                    <input type="file" ref={fileInputRef} onChange={handleFileSelect} accept="image/*" className="hidden" />
-                    <button type="button" onClick={() => fileInputRef.current?.click()} className="bg-green-600 p-1 rounded hover:bg-green-700"><Upload size={14}/></button>
-                    <button type="button" onClick={() => {setPreviewUrl(null); if(fileInputRef.current) fileInputRef.current.value="";}} className="bg-red-600 p-1 rounded hover:bg-red-700"><Trash2 size={14}/></button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      accept="image/*"
+                      className="hidden"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="bg-green-600 p-1 rounded hover:bg-green-700"
+                      title="Upload photo"
+                    >
+                      <Upload size={14} />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPreviewUrl(null);
+                        if (fileInputRef.current)
+                          fileInputRef.current.value = "";
+                      }}
+                      className="bg-red-600 p-1 rounded hover:bg-red-700"
+                      title="Remove photo"
+                    >
+                      <Trash2 size={14} />
+                    </button>
                   </div>
                 </div>
                 <div className="p-6 flex justify-center">
                   <div className="w-32 h-40 bg-gray-50 border-2 border-dashed rounded overflow-hidden flex flex-col items-center justify-center text-gray-400">
                     {previewUrl ? (
-                      <img src={previewUrl} className="w-full h-full object-cover" alt="Preview" />
+                      <img
+                        src={previewUrl}
+                        className="w-full h-full object-cover"
+                        alt="Preview"
+                      />
                     ) : (
                       <>
                         <Users size={40} strokeWidth={1} />
@@ -308,13 +395,14 @@ export default function CustomerForm({
               </div>
             </div>
 
-            {/* Contact & Address Section */}
+            {/* ── Row 2: Contact + National Address ── */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Contact Info Card */}
-              <div className="bg-white rounded border border-gray-200 shadow-sm">
+
+              {/* Contact Information */}
+              <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
                 <div className="bg-blue-600 text-white p-2 px-4 flex justify-between items-center text-sm font-medium">
                   <span>Contact Information</span>
-                  <Minus size={14}/>
+                  <Minus size={14} />
                 </div>
                 <div className="p-4 space-y-3">
                   {[
@@ -323,21 +411,22 @@ export default function CustomerForm({
                     { l: "Mobile Number", n: "mobile" },
                     { l: "Phone Number", n: "phone" },
                     { l: "Email Address", n: "email" },
-                    { l: "Website", n: "website" }
-                  ].map(field => (
-                    <div key={field.n}>
-                      <label className="text-xs font-bold block mb-1 uppercase text-gray-500">{field.l}</label>
-                      <input name={field.n} value={formData[field.n as keyof typeof formData] as string} onChange={handleInputChange} placeholder={`${field.l} Enter`} className="w-full border p-2 text-sm rounded outline-none" />
-                    </div>
+                    { l: "Website", n: "website" },
+                  ].map((field) => (
+                    <Field
+                      key={field.n}
+                      label={field.l}
+                      name={field.n}
+                    />
                   ))}
                 </div>
               </div>
 
-              {/* National Address Card */}
-              <div className="bg-white rounded border border-gray-200 shadow-sm">
+              {/* National Address */}
+              <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
                 <div className="bg-blue-600 text-white p-2 px-4 flex justify-between items-center text-sm font-medium">
                   <span>National Address</span>
-                  <Minus size={14}/>
+                  <Minus size={14} />
                 </div>
                 <div className="p-4 space-y-3">
                   {[
@@ -345,32 +434,40 @@ export default function CustomerForm({
                     { l: "Street Name", n: "street" },
                     { l: "District Name", n: "district" },
                     { l: "Second Number", n: "second_no" },
-                    { l: "Postal Code", n: "postal_code" }
-                  ].map(field => (
-                    <div key={field.n}>
-                      <label className="text-xs font-bold block mb-1 uppercase text-gray-500">{field.l}</label>
-                      <input name={field.n} value={formData[field.n as keyof typeof formData] as string} onChange={handleInputChange} placeholder={`${field.l} Enter`} className="w-full border p-2 text-sm rounded outline-none" />
-                    </div>
+                    { l: "Postal Code", n: "postal_code" },
+                  ].map((field) => (
+                    <Field
+                      key={field.n}
+                      label={field.l}
+                      name={field.n}
+                    />
                   ))}
-                  <div className="grid grid-cols-2 gap-4">
-                    <div><label className="text-xs font-bold block mb-1 uppercase text-gray-500">City</label><input name="city" value={formData.city} onChange={handleInputChange} placeholder="City Enter" className="w-full border p-2 text-sm rounded outline-none" /></div>
-                    <div><label className="text-xs font-bold block mb-1 uppercase text-gray-500">Country</label><input name="country" value={formData.country} onChange={handleInputChange} placeholder="Country Enter" className="w-full border p-2 text-sm rounded outline-none" /></div>
+
+                  {/* City + Country side by side */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Field label="City" name="city" />
+                    <Field label="Country" name="country" />
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* Other Info Section */}
+            {/* ── Row 3: Other Information ── */}
             <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
               <div className="bg-blue-600 text-white p-2 px-4 flex justify-between items-center text-sm font-medium">
                 <span>Other Information</span>
-                <Minus size={14}/>
+                <Minus size={14} />
               </div>
-              <div className="p-4 grid grid-cols-2 gap-4">
+
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* VAT Number */}
                 <div>
                   <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
-                    VAT Number <span className="text-red-500">*</span>
-                    <span className="ml-2 normal-case font-normal text-gray-400">(exactly 15 digits)</span>
+                    VAT Number{" "}
+                    <span className="text-red-500">*</span>
+                    <span className="ml-2 normal-case font-normal text-gray-400">
+                      (exactly 15 digits)
+                    </span>
                   </label>
                   <input
                     name="vat_no"
@@ -406,33 +503,61 @@ export default function CustomerForm({
                     </span>
                   </div>
                 </div>
-                <div><label className="text-xs font-bold block mb-1 uppercase text-gray-500">Other ID</label><input name="other_id" value={formData.other_id} onChange={handleInputChange} placeholder="Other ID Enter" className="w-full border p-2 text-sm rounded outline-none" /></div>
+
+                {/* Other ID */}
+                <div>
+                  <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+                    Other ID
+                  </label>
+                  <input
+                    name="other_id"
+                    value={formData.other_id}
+                    onChange={handleInputChange}
+                    placeholder="Other ID Enter"
+                    className="w-full border p-2 text-sm rounded outline-none focus:border-blue-500"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
+            {/* ── Status Message ── */}
             {statusMsg && (
-              <div className={`text-sm font-medium px-4 py-3 rounded border ${
-                statusType === "error"
-                  ? "bg-red-50 text-red-700 border-red-200"
-                  : "bg-green-50 text-green-700 border-green-200"
-              }`}>
+              <div
+                className={`text-sm font-medium px-4 py-3 rounded border ${
+                  statusType === "error"
+                    ? "bg-red-50 text-red-700 border-red-200"
+                    : "bg-green-50 text-green-700 border-green-200"
+                }`}
+              >
                 {statusMsg}
               </div>
             )}
 
-            <div className="bg-white p-4 border rounded shadow-sm flex items-center gap-3">
-              <button 
-                onClick={handleSave} 
+            {/* ── Action Buttons ── */}
+            <div className="bg-white p-4 border rounded shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <button
+                onClick={handleSave}
                 disabled={isSaving}
-                className={`bg-blue-600 text-white px-10 py-2 rounded text-sm font-bold shadow-md transition-all ${isSaving ? 'opacity-50 cursor-not-allowed' : 'hover:bg-blue-700 active:scale-95'}`}
+                className={`bg-blue-600 text-white px-8 sm:px-10 py-2.5 sm:py-2 rounded text-sm font-bold shadow-md transition-all w-full sm:w-auto ${
+                  isSaving
+                    ? "opacity-50 cursor-not-allowed"
+                    : "hover:bg-blue-700 active:scale-95"
+                }`}
               >
-                {isSaving ? "Saving..." : mode === "edit" ? "Update Customer" : "Save Customer"}
+                {isSaving
+                  ? "Saving..."
+                  : mode === "edit"
+                  ? "Update Customer"
+                  : "Save Customer"}
               </button>
-              <button onClick={() => router.push("/customer")} className="bg-gray-500 text-white px-6 py-2 rounded text-sm font-bold hover:bg-gray-600">
+              <button
+                onClick={() => router.push("/customer")}
+                className="bg-gray-500 text-white px-6 py-2.5 sm:py-2 rounded text-sm font-bold hover:bg-gray-600 transition-colors w-full sm:w-auto"
+              >
                 Cancel
               </button>
             </div>
+
           </div>
         </div>
       </main>
