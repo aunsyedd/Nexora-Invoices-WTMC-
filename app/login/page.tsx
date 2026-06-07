@@ -7,12 +7,12 @@ import { Eye, EyeOff, Fingerprint, Loader2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 
 const FEATURES = [
-  "Saudi QR Reader Compatible",
+  "KSA & UAE QR Reader Compatible",
   "Tax Invoices",
   "Customer Management",
   "Real-time Data",
   "Print & Export",
-  "VAT 15% Auto Calc",
+  "VAT Auto Calc",
 ];
 
 export default function LoginPage() {
