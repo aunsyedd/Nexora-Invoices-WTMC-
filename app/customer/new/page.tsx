@@ -34,6 +34,38 @@ const initialState = {
   active: true,
 };
 
+// ── Field component defined OUTSIDE CustomerForm ──
+// If defined inside, React treats it as a new component type on every render,
+// causing inputs to unmount/remount and lose focus on every keystroke.
+interface FieldProps {
+  label: string;
+  name: string;
+  placeholder?: string;
+  required?: boolean;
+  extra?: React.ReactNode;
+  formData: typeof initialState;
+  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
+}
+
+function Field({ label, name, placeholder, required, extra, formData, onChange }: FieldProps) {
+  return (
+    <div>
+      <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+        {label}
+        {required && <span className="text-red-500 ml-1">*</span>}
+      </label>
+      <input
+        name={name}
+        value={formData[name as keyof typeof formData] as string}
+        onChange={onChange}
+        placeholder={placeholder ?? `${label} Enter`}
+        className="w-full border p-2 text-sm rounded outline-none focus:border-blue-500"
+      />
+      {extra}
+    </div>
+  );
+}
+
 export default function CustomerForm({
   mode = "create",
   customerId = "",
@@ -210,36 +242,6 @@ export default function CustomerForm({
 
   if (!user) return null;
 
-  // ── Reusable field renderer ──
-  const Field = ({
-    label,
-    name,
-    placeholder,
-    required,
-    extra,
-  }: {
-    label: string;
-    name: string;
-    placeholder?: string;
-    required?: boolean;
-    extra?: React.ReactNode;
-  }) => (
-    <div>
-      <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      <input
-        name={name}
-        value={formData[name as keyof typeof formData] as string}
-        onChange={handleInputChange}
-        placeholder={placeholder ?? `${label} Enter`}
-        className="w-full border p-2 text-sm rounded outline-none focus:border-blue-500"
-      />
-      {extra}
-    </div>
-  );
-
   return (
     <div className="flex min-h-screen bg-gray-100 font-sans text-gray-700">
       <Navbar />
@@ -308,9 +310,7 @@ export default function CustomerForm({
                     </label>
                     <input
                       disabled
-                      value={
-                        mode === "edit" && customerId ? customerId : ""
-                      }
+                      value={mode === "edit" && customerId ? customerId : ""}
                       placeholder="Auto-generated"
                       className="w-full border bg-gray-50 p-2 text-sm rounded cursor-not-allowed"
                     />
@@ -366,8 +366,7 @@ export default function CustomerForm({
                       type="button"
                       onClick={() => {
                         setPreviewUrl(null);
-                        if (fileInputRef.current)
-                          fileInputRef.current.value = "";
+                        if (fileInputRef.current) fileInputRef.current.value = "";
                       }}
                       className="bg-red-600 p-1 rounded hover:bg-red-700"
                       title="Remove photo"
@@ -417,6 +416,8 @@ export default function CustomerForm({
                       key={field.n}
                       label={field.l}
                       name={field.n}
+                      formData={formData}
+                      onChange={handleInputChange}
                     />
                   ))}
                 </div>
@@ -440,13 +441,25 @@ export default function CustomerForm({
                       key={field.n}
                       label={field.l}
                       name={field.n}
+                      formData={formData}
+                      onChange={handleInputChange}
                     />
                   ))}
 
                   {/* City + Country side by side */}
                   <div className="grid grid-cols-2 gap-3">
-                    <Field label="City" name="city" />
-                    <Field label="Country" name="country" />
+                    <Field
+                      label="City"
+                      name="city"
+                      formData={formData}
+                      onChange={handleInputChange}
+                    />
+                    <Field
+                      label="Country"
+                      name="country"
+                      formData={formData}
+                      onChange={handleInputChange}
+                    />
                   </div>
                 </div>
               </div>
