@@ -34,46 +34,14 @@ const initialState = {
   active: true,
 };
 
-// ── Field component defined OUTSIDE CustomerForm ──
-// If defined inside, React treats it as a new component type on every render,
-// causing inputs to unmount/remount and lose focus on every keystroke.
-interface FieldProps {
-  label: string;
-  name: string;
-  placeholder?: string;
-  required?: boolean;
-  extra?: React.ReactNode;
-  formData: typeof initialState;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void;
-}
-
-function Field({ label, name, placeholder, required, extra, formData, onChange }: FieldProps) {
-  return (
-    <div>
-      <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
-        {label}
-        {required && <span className="text-red-500 ml-1">*</span>}
-      </label>
-      <input
-        name={name}
-        value={formData[name as keyof typeof formData] as string}
-        onChange={onChange}
-        placeholder={placeholder ?? `${label} Enter`}
-        className="w-full border p-2 text-sm rounded outline-none focus:border-blue-500"
-      />
-      {extra}
-    </div>
-  );
-}
-
 export default function CustomerForm({
   mode = "create",
   customerId = "",
   initialCustomer = null,
 }: CustomerFormProps) {
   const { user, loading: authLoading } = useAuth();
-  const router = useRouter();
 
+  const router = useRouter();
   const [isSaving, setIsSaving] = useState(false);
   const [statusMsg, setStatusMsg] = useState("");
   const [statusType, setStatusType] = useState<"success" | "error" | "">("");
@@ -83,8 +51,8 @@ export default function CustomerForm({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [formData, setFormData] = useState(initialState);
 
+  // ✅ FIX: Removed `user` from dependency array to prevent form reset on auth re-fires
   useEffect(() => {
-    if (!user) return;
     if (mode === "edit" && initialCustomer) {
       setFormData({
         name: String(initialCustomer.name ?? ""),
@@ -93,7 +61,7 @@ export default function CustomerForm({
         phone: String(initialCustomer.phone ?? ""),
         email: String(initialCustomer.email ?? ""),
         website: String(initialCustomer.website ?? ""),
-        building_no: String(initialCustomer.building_no ?? ""),
+   building_no: initialCustomer.building_no ? String(initialCustomer.building_no) : "",
         street: String(initialCustomer.street ?? ""),
         district: String(initialCustomer.district ?? ""),
         second_no: String(initialCustomer.second_no ?? ""),
@@ -105,11 +73,12 @@ export default function CustomerForm({
         image_url: String(initialCustomer.image_url ?? ""),
         active: Boolean(initialCustomer.active ?? true),
       });
+
       if (initialCustomer.image_url) {
         setPreviewUrl(String(initialCustomer.image_url));
       }
     }
-  }, [mode, initialCustomer, user]);
+  }, [mode, initialCustomer]); // ✅ `user` removed — was causing form to reset on every auth tick
 
   const handleInputChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -117,6 +86,7 @@ export default function CustomerForm({
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
 
+    // Live VAT validation feedback
     if (name === "vat_no") {
       const digits = value.replace(/\D/g, "");
       if (value && !/^\d+$/.test(value)) {
@@ -212,7 +182,10 @@ export default function CustomerForm({
         return;
       }
 
-      const { error } = await supabase.from("customers").insert([payload]);
+      const { error } = await supabase
+        .from("customers")
+        .insert([payload]);
+
       if (error) throw error;
 
       setStatusType("success");
@@ -228,10 +201,9 @@ export default function CustomerForm({
     }
   };
 
-  // ── Auth guard ──
   if (authLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 px-4">
         <div className="flex flex-col items-center gap-3">
           <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin" />
           <p className="text-sm text-gray-500 font-medium">Loading...</p>
@@ -243,27 +215,26 @@ export default function CustomerForm({
   if (!user) return null;
 
   return (
-    <div className="flex min-h-screen bg-gray-100 font-sans text-gray-700">
+    <div className="flex flex-col md:flex-row min-h-screen bg-gray-100 font-sans text-gray-700">
       <Navbar />
 
-      <main className="flex-1 pt-14 overflow-y-auto min-w-0">
-        <div className="p-3 sm:p-6">
-
-          {/* ── Page Header ── */}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
-            <div className="flex items-center gap-3 flex-wrap">
+      <main className="flex-1 pt-14 overflow-y-auto w-full">
+        <div className="px-4 py-4 sm:p-6 max-w-7xl mx-auto w-full">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
               <h1 className="text-xl sm:text-2xl font-semibold text-gray-800">
                 {mode === "edit" ? "Edit Customer" : "New Customer"}
               </h1>
               <Link
                 href="/customer"
-                className="flex items-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-sm text-sm font-medium transition-colors shadow-sm"
+                className="inline-flex items-center justify-center gap-1 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-sm text-sm font-medium transition-colors shadow-sm w-full sm:w-auto"
               >
-                <List size={15} />
+                <List size={16} />
                 Customer List
               </Link>
             </div>
-            <div className="text-xs text-blue-600 self-start sm:self-auto">
+            <div className="text-xs text-blue-600">
               Home /{" "}
               <span className="text-gray-500">
                 {mode === "edit" ? "Edit Customer" : "New Customer"}
@@ -272,11 +243,8 @@ export default function CustomerForm({
           </div>
 
           <div className="space-y-4 pb-10">
-
-            {/* ── Row 1: General Info + Picture ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-
-              {/* General Information */}
+              {/* General Info */}
               <div className="lg:col-span-2 bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
                 <div className="bg-blue-600 text-white p-2 px-4 flex justify-between items-center text-sm">
                   <span className="font-medium">General Information</span>
@@ -301,9 +269,7 @@ export default function CustomerForm({
                     <Minus size={14} />
                   </div>
                 </div>
-
                 <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {/* ID */}
                   <div>
                     <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
                       ID
@@ -315,8 +281,6 @@ export default function CustomerForm({
                       className="w-full border bg-gray-50 p-2 text-sm rounded cursor-not-allowed"
                     />
                   </div>
-
-                  {/* Third Party Type */}
                   <div>
                     <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
                       Third Party Type
@@ -325,8 +289,6 @@ export default function CustomerForm({
                       <option>Customer</option>
                     </select>
                   </div>
-
-                  {/* Name — full width */}
                   <div className="sm:col-span-2">
                     <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
                       Name
@@ -342,7 +304,7 @@ export default function CustomerForm({
                 </div>
               </div>
 
-              {/* Picture */}
+              {/* Picture Section */}
               <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
                 <div className="bg-blue-600 text-white p-2 px-4 flex justify-between items-center text-sm">
                   <span className="font-medium">Picture</span>
@@ -358,7 +320,6 @@ export default function CustomerForm({
                       type="button"
                       onClick={() => fileInputRef.current?.click()}
                       className="bg-green-600 p-1 rounded hover:bg-green-700"
-                      title="Upload photo"
                     >
                       <Upload size={14} />
                     </button>
@@ -369,7 +330,6 @@ export default function CustomerForm({
                         if (fileInputRef.current) fileInputRef.current.value = "";
                       }}
                       className="bg-red-600 p-1 rounded hover:bg-red-700"
-                      title="Remove photo"
                     >
                       <Trash2 size={14} />
                     </button>
@@ -394,11 +354,10 @@ export default function CustomerForm({
               </div>
             </div>
 
-            {/* ── Row 2: Contact + National Address ── */}
+            {/* Contact & Address Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-
-              {/* Contact Information */}
-              <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
+              {/* Contact Info Card */}
+              <div className="bg-white rounded border border-gray-200 shadow-sm">
                 <div className="bg-blue-600 text-white p-2 px-4 flex justify-between items-center text-sm font-medium">
                   <span>Contact Information</span>
                   <Minus size={14} />
@@ -412,19 +371,26 @@ export default function CustomerForm({
                     { l: "Email Address", n: "email" },
                     { l: "Website", n: "website" },
                   ].map((field) => (
-                    <Field
-                      key={field.n}
-                      label={field.l}
-                      name={field.n}
-                      formData={formData}
-                      onChange={handleInputChange}
-                    />
+                    <div key={field.n}>
+                      <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+                        {field.l}
+                      </label>
+                      <input
+                        name={field.n}
+                        value={
+                          formData[field.n as keyof typeof formData] as string
+                        }
+                        onChange={handleInputChange}
+                        placeholder={`${field.l} Enter`}
+                        className="w-full border p-2 text-sm rounded outline-none"
+                      />
+                    </div>
                   ))}
                 </div>
               </div>
 
-              {/* National Address */}
-              <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
+              {/* National Address Card */}
+              <div className="bg-white rounded border border-gray-200 shadow-sm">
                 <div className="bg-blue-600 text-white p-2 px-4 flex justify-between items-center text-sm font-medium">
                   <span>National Address</span>
                   <Minus size={14} />
@@ -437,47 +403,61 @@ export default function CustomerForm({
                     { l: "Second Number", n: "second_no" },
                     { l: "Postal Code", n: "postal_code" },
                   ].map((field) => (
-                    <Field
-                      key={field.n}
-                      label={field.l}
-                      name={field.n}
-                      formData={formData}
-                      onChange={handleInputChange}
-                    />
+                    <div key={field.n}>
+                      <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+                        {field.l}
+                      </label>
+                      <input
+                        name={field.n}
+                        value={
+                          formData[field.n as keyof typeof formData] as string
+                        }
+                        onChange={handleInputChange}
+                        placeholder={`${field.l} Enter`}
+                        className="w-full border p-2 text-sm rounded outline-none"
+                      />
+                    </div>
                   ))}
-
-                  {/* City + Country side by side */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Field
-                      label="City"
-                      name="city"
-                      formData={formData}
-                      onChange={handleInputChange}
-                    />
-                    <Field
-                      label="Country"
-                      name="country"
-                      formData={formData}
-                      onChange={handleInputChange}
-                    />
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+                        City
+                      </label>
+                      <input
+                        name="city"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                        placeholder="City Enter"
+                        className="w-full border p-2 text-sm rounded outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
+                        Country
+                      </label>
+                      <input
+                        name="country"
+                        value={formData.country}
+                        onChange={handleInputChange}
+                        placeholder="Country Enter"
+                        className="w-full border p-2 text-sm rounded outline-none"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* ── Row 3: Other Information ── */}
+            {/* Other Info Section */}
             <div className="bg-white rounded border border-gray-200 shadow-sm overflow-hidden">
               <div className="bg-blue-600 text-white p-2 px-4 flex justify-between items-center text-sm font-medium">
                 <span>Other Information</span>
                 <Minus size={14} />
               </div>
-
               <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* VAT Number */}
                 <div>
                   <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
-                    VAT Number{" "}
-                    <span className="text-red-500">*</span>
+                    VAT Number <span className="text-red-500">*</span>
                     <span className="ml-2 normal-case font-normal text-gray-400">
                       (exactly 15 digits)
                     </span>
@@ -516,8 +496,6 @@ export default function CustomerForm({
                     </span>
                   </div>
                 </div>
-
-                {/* Other ID */}
                 <div>
                   <label className="text-xs font-bold block mb-1 uppercase text-gray-500">
                     Other ID
@@ -527,13 +505,13 @@ export default function CustomerForm({
                     value={formData.other_id}
                     onChange={handleInputChange}
                     placeholder="Other ID Enter"
-                    className="w-full border p-2 text-sm rounded outline-none focus:border-blue-500"
+                    className="w-full border p-2 text-sm rounded outline-none"
                   />
                 </div>
               </div>
             </div>
 
-            {/* ── Status Message ── */}
+            {/* Status Message */}
             {statusMsg && (
               <div
                 className={`text-sm font-medium px-4 py-3 rounded border ${
@@ -546,12 +524,12 @@ export default function CustomerForm({
               </div>
             )}
 
-            {/* ── Action Buttons ── */}
+            {/* Action Buttons */}
             <div className="bg-white p-4 border rounded shadow-sm flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <button
                 onClick={handleSave}
                 disabled={isSaving}
-                className={`bg-blue-600 text-white px-8 sm:px-10 py-2.5 sm:py-2 rounded text-sm font-bold shadow-md transition-all w-full sm:w-auto ${
+                className={`bg-blue-600 text-white px-10 py-2 rounded text-sm font-bold shadow-md transition-all w-full sm:w-auto ${
                   isSaving
                     ? "opacity-50 cursor-not-allowed"
                     : "hover:bg-blue-700 active:scale-95"
@@ -565,12 +543,11 @@ export default function CustomerForm({
               </button>
               <button
                 onClick={() => router.push("/customer")}
-                className="bg-gray-500 text-white px-6 py-2.5 sm:py-2 rounded text-sm font-bold hover:bg-gray-600 transition-colors w-full sm:w-auto"
+                className="bg-gray-500 text-white px-6 py-2 rounded text-sm font-bold hover:bg-gray-600 w-full sm:w-auto"
               >
                 Cancel
               </button>
             </div>
-
           </div>
         </div>
       </main>
